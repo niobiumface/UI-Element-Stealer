@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>UI Element Stealer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>UI Element Stealer</h1>
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search elements..." aria-label="Search elements">
+    </div>
+  </div>
+  
+  <div class="category-filter">
+    <select id="category-filter" aria-label="Filter by category">
+      <option value="all">All Categories</option>
+    </select>
+    <button id="new-category-btn">+ New Category</button>
+  </div>
+  
+  <div id="elements-container"></div>
+  
+  <div class="empty-state" id="empty-state">
+    <p>No elements saved yet. Right-click on a webpage and select "Steal Element" to get started.</p>
+  </div>
+  
+  <div class="footer">
+    <button id="manage-categories-btn">Manage Categories</button>
+    <div>
+      <button id="export-btn">Export</button>
+      <button id="import-btn">Import</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

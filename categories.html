@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Categories - UI Element Stealer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    
+    .header {
+      background-color: #4285f4;
+      color: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    
+    .add-category {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    
+    .add-category input {
+      flex-grow: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    
+    .add-category button {
+      padding: 10px 15px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .categories-list {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .category-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .category-item:last-child {
+      border-bottom: none;
+    }
+    
+    .category-name {
+      font-weight: bold;
+    }
+    
+    .category-count {
+      color: #666;
+      margin-left: 10px;
+    }
+    
+    .category-actions {
+      display: flex;
+    }
+    
+    .category-actions button {
+      margin-left: 10px;
+      padding: 5px 10px;
+      background-color: #f1f1f1;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .category-actions button:hover {
+      background-color: #e4e4e4;
+    }
+    
+    .rename-btn {
+      color: #4285f4;
+    }
+    
+    .delete-btn {
+      color: #ea4335;
+    }
+    
+    .empty-state {
+      padding: 30px 15px;
+      text-align: center;
+      color: #666;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #4caf50;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .notification.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Manage Categories</h1>
+    <p>Create, rename, and delete categories for your saved UI elements.</p>
+  </div>
+  
+  <div class="add-category">
+    <input type="text" id="new-category-input" placeholder="Enter new category name">
+    <button id="add-category-btn">Add Category</button>
+  </div>
+  
+  <div id="categories-container"></div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCategories();
+      
+      document.getElementById('add-category-btn').addEventListener('click', addCategory);
+      document.getElementById('new-category-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addCategory();
+        }
+      });
+    });
+    
+    function loadCategories() {
+      chrome.storage.local.get({ categories: ["Default"], elements: [] }, (data) => {
+        const categoriesContainer = document.getElementById('categories-container');
+        
+        if (data.categories.length === 0) {
+          categoriesContainer.innerHTML = `
+            <div class="empty-state">
+              <p>No categories found. Create your first category above.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        // Count elements in each category
+        const categoryCounts = {};
+        data.elements.forEach(element => {
+          const category = element.category || "Default";
+          categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        });
+        
+        const categoriesList = document.createElement('div');
+        categoriesList.className = 'categories-list';
+        
+        data.categories.forEach(category => {
+          const count = categoryCounts[category] || 0;
+          const isDefault = category === "Default";
+          
+          const categoryItem = document.createElement('div');
+          categoryItem.className = 'category-item';
+          categoryItem.innerHTML = `
+            <div>
+              <span class="category-name">${category}</span>
+              <span class="category-count">(${count} elements)</span>
+            </div>
+            <div class="category-actions">
+              <button class="rename-btn" ${isDefault ? 'disabled' : ''}>Rename</button>
+              <button class="delete-btn" ${isDefault ? 'disabled' : ''}>Delete</button>
+            </div>
+          `;
+          
+          categoriesList.appendChild(categoryItem);
+          
+          // Add event listeners
+          if (!isDefault) {
+            categoryItem.querySelector('.rename-btn').addEventListener('click', () => {
+              renameCategory(category);
+            });
+            
+            categoryItem.querySelector('.delete-btn').addEventListener('click', () => {
+              deleteCategory(category, count);
+            });
+          }
+        });
+        
+        categoriesContainer.innerHTML = '';
+        categoriesContainer.appendChild(categoriesList);
+      });
+    }
+    
+    function addCategory() {
+      const input = document.getElementById('new-category-input');
+      const categoryName = input.value.trim();
+      
+      if (!categoryName) {
+        showNotification('Please enter a category name');
+        return;
+      }
+      
+      chrome.storage.local.get({ categories: ["Default"] }, (data) => {
+        const categories = data.categories;
+        
+        if (categories.includes(categoryName)) {
+          showNotification('Category already exists');
+          return;
+        }
+        
+        categories.push(categoryName);
+        chrome.storage.local.set({ categories }, () => {
+          input.value = '';
+          loadCategories();
+          showNotification('Category added successfully');
+        });
+      });
+    }
+    
+    function renameCategory(oldName) {
+      const newName = prompt(`Rename category "${oldName}" to:`, oldName);
+      
+      if (!newName || newName === oldName) return;
+      
+      chrome.storage.local.get({ categories: ["Default"], elements: [] }, (data) => {
+        const categories = data.categories;
+        const elements = data.elements;
+        
+        if (categories.includes(newName)) {
+          showNotification('Category name already exists');
+          return;
+        }
+        
+        // Update category name in categories list
+        const index = categories.indexOf(oldName);
+        if (index !== -1) {
+          categories[index] = newName;
+        }
+        
+        // Update category name in all elements
+        elements.forEach(element => {
+          if (element.category === oldName) {
+            element.category = newName;
+          }
+        });
+        
+        chrome.storage.local.set({ categories, elements }, () => {
+          loadCategories();
+          showNotification('Category renamed successfully');
+        });
+      });
+    }
+    
+    function deleteCategory(category, count) {
+      if (!confirm(`Are you sure you want to delete the category "${category}"${count > 0 ? ` and move ${count} elements to "Default"` : ''}?`)) {
+        return;
+      }
+      
+      chrome.storage.local.get({ categories: ["Default"], elements: [] }, (data) => {
+        const categories = data.categories;
+        const elements = data.elements;
+        
+        // Remove category from categories list
+        const index = categories.indexOf(category);
+        if (index !== -1) {
+          categories.splice(index, 1);
+        }
+        
+        // Move elements to Default category
+        elements.forEach(element => {
+          if (element.category === category) {
+            element.category = "Default";
+          }
+        });
+        
+        chrome.storage.local.set({ categories, elements }, () => {
+          loadCategories();
+          showNotification('Category deleted successfully');
+        });
+      });
+    }
+    
+    function showNotification(message) {
+      // Check if notification exists
+      let notification = document.querySelector('.notification');
+      
+      if (!notification) {
+        notification = document.createElement('div');
+        notification.className = 'notification';
+        document.body.appendChild(notification);
+      }
+      
+      notification.textContent = message;
+      notification.classList.add('show');
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
